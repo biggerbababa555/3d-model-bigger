@@ -752,6 +752,75 @@
         font-size: 0.85rem;
       }
     }
+
+    /* --------------------------------------------------
+       MODEL SWITCHER TABS (BOTTOM OVERLAY)
+       -------------------------------------------------- */
+    .model-switcher {
+      position: absolute;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 25px;
+      padding: 5px;
+      pointer-events: auto;
+    }
+
+    .switcher-btn {
+      background: none;
+      border: none;
+      font-family: var(--font-family);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 8px 16px;
+      position: relative;
+      transition: var(--transition-fast);
+      opacity: 0.6;
+    }
+
+    .switcher-btn:hover {
+      opacity: 1;
+      color: var(--text-primary);
+    }
+
+    .switcher-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 2px;
+      background-color: var(--accent-color);
+      transition: var(--transition-fast);
+    }
+
+    .switcher-btn.active {
+      opacity: 1;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .switcher-btn.active::after {
+      width: 40px;
+    }
+
+    @media (max-width: 1024px) {
+      .model-switcher {
+        bottom: 90px;
+        gap: 15px;
+      }
+      .switcher-btn {
+        font-size: 0.7rem;
+        padding: 6px 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -808,6 +877,12 @@
         </svg>
       </div>
       <div class="hint-text">Drag to Rotate 3D Model</div>
+    </div>
+
+    <!-- Model Switcher Tabs -->
+    <div class="model-switcher" id="model-switcher">
+      <button class="switcher-btn active" data-car="rs6">01. RS 6 Avant</button>
+      <button class="switcher-btn" data-car="r8">02. Audi R8</button>
     </div>
 
     <!-- Floating controls toolbar -->
@@ -1005,6 +1080,89 @@
     document.addEventListener('DOMContentLoaded', () => {
       const modelViewer = document.getElementById('audi-model');
       
+      // Car metadata mapping
+      const carData = {
+        rs6: {
+          src: 'audi.glb',
+          subBrand: `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            Super Estate Avant
+          `,
+          title: 'Audi RS 6 Avant',
+          edition: '2020 Model Year • C8 Generation',
+          headline: 'Family utility meets supercar speed.',
+          desc: 'The 2020 Audi RS 6 Avant (C8) marks a legendary milestone, combining blistering performance with the practical cabin of a luxury wagon. Designed with an ultra-aggressive widebody (+80mm over the A6), standard matrix LED headlights, and gorgeous muscular stance, it asserts itself as the ultimate performance wagon.',
+          stats: {
+            stat1: { label: 'V8 Twin-Turbo', value: '591<span>HP</span>' },
+            stat2: { label: '0 - 100 KM/H', value: '3.6<span>sec</span>' },
+            stat3: { label: 'Max Torque', value: '800<span>Nm</span>' },
+            stat4: { label: 'Top Velocity', value: '305<span>KM/H</span>' }
+          },
+          specs: [
+            { label: 'Engine', value: '4.0L TFSI Twin-Turbo V8 with 48V MHEV' },
+            { label: 'Horsepower', value: '591 hp (441 kW) @ 6,000–6,250 rpm' },
+            { label: 'Torque', value: '590 lb-ft (800 Nm) @ 2,050–4,500 rpm' },
+            { label: 'Transmission', value: '8-speed Tiptronic Automatic' },
+            { label: 'Drivetrain', value: 'quattro® Permanent All-Wheel Drive' },
+            { label: '0-100 km/h', value: '3.6 seconds (0-60 mph in 3.5s)' },
+            { label: 'Top Speed', value: '250 km/h (155 mph) base / 305 km/h (190 mph) optional' },
+            { label: 'Suspension', value: 'RS Adaptive Air Suspension (re-tuned)' },
+            { label: 'Braking', value: '10-piston steel brakes / Optional 440mm Ceramic brakes' },
+            { label: 'Cargo Vol', value: '565 Liters (Up to 1,680 Liters with seats folded)' },
+            { label: 'Weight', value: '2,075 kg (4,575 lbs) unladen' }
+          ],
+          tech: [
+            { title: 'Permanent quattro® Drive', desc: 'Audi\'s legendary permanent all-wheel drive distributes engine force dynamically. A mechanical self-locking center differential splits torque 40:60 front-to-back under normal driving, adapting instantly to route up to 70% forward or 85% rearward when slippage occurs.' },
+            { title: 'Dynamic All-Wheel Steering', desc: 'Combining direct responses with peerless stability. At lower speeds, the rear wheels turn up to 5 degrees in the opposite direction of the front wheels, shrinking the turning circle by up to 1 meter. At high speeds, they turn in the same direction to boost lane-change stability.' },
+            { title: '48-Volt Mild-Hybrid (MHEV)', desc: 'Supercar dynamics, smart efficiency. A 48V starter/generator can recover up to 12 kW of power during deceleration, storing it in a lithium-ion battery. This system allows engine-off coasting at highway speeds for up to 40 seconds to reduce emissions and fuel usage.' },
+            { title: 'RS Adaptive Air Suspension', desc: 'The standard RS adaptive air suspension is specially configured for high performance, sitting 20mm lower than standard. Above 120 km/h, the ride automatically drops another 10mm to optimize aerodynamics and cornering control.' }
+          ]
+        },
+        r8: {
+          src: 'r8.glb',
+          subBrand: `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+            Mid-Engine Supercar
+          `,
+          title: 'Audi R8 V10 Plus',
+          edition: '2017 Model Year • Type 4S Generation',
+          headline: 'Pinnacle of Naturally Aspirated Performance.',
+          desc: 'The 2017 Audi R8 (Type 4S) is a high-revving masterpiece that shares its genes, platform, and roaring V10 engine with the Lamborghini Huracán. Using the lightweight Audi Space Frame (ASF) hybrid structure, it delivers an raw, pure motorsport experience with a screaming 8,500 rpm redline.',
+          stats: {
+            stat1: { label: 'Naturally Asp V10', value: '610<span>HP</span>' },
+            stat2: { label: '0 - 100 KM/H', value: '3.2<span>sec</span>' },
+            stat3: { label: 'Max Torque', value: '560<span>Nm</span>' },
+            stat4: { label: 'Top Velocity', value: '330<span>KM/H</span>' }
+          },
+          specs: [
+            { label: 'Engine', value: '5.2L FSI Naturally Aspirated V10' },
+            { label: 'Horsepower', value: '610 hp (449 kW) @ 8,250 rpm' },
+            { label: 'Torque', value: '413 lb-ft (560 Nm) @ 6,500 rpm' },
+            { label: 'Transmission', value: '7-speed S-tronic Dual-Clutch' },
+            { label: 'Drivetrain', value: 'quattro® Permanent All-Wheel Drive' },
+            { label: '0-100 km/h', value: '3.2 seconds (0-60 mph in 2.9s)' },
+            { label: 'Top Speed', value: '330 km/h (205 mph)' },
+            { label: 'Suspension', value: 'Sport Suspension with Magnetic Ride' },
+            { label: 'Braking', value: 'Carbon-Ceramic Brake Discs (380mm front)' },
+            { label: 'Cargo Vol', value: '112 Liters (Frunk)' },
+            { label: 'Weight', value: '1,580 kg (3,483 lbs) unladen' }
+          ],
+          tech: [
+            { title: 'Naturally Aspirated 5.2L V10', desc: 'A dying breed of mechanical art. Generating instantaneous response, this high-revving V10 engine produces an raw, intoxicating exhaust symphony up to a screaming 8,500 rpm redline.' },
+            { title: '7-Speed S-tronic Transmission', desc: 'The dual-clutch gearbox executes gear changes within hundredths of a second. Integrated launch control enables instant, neck-snapping acceleration off the starting line.' },
+            { title: 'Audi Magnetic Ride Suspension', desc: 'Continuously adapts suspension dampening to the road condition in real time. Synthetic oil inside the dampers contains magnetic particles that align instantly under electrical voltage.' },
+            { title: 'Audi Space Frame (ASF)', desc: 'An engineering revolution. Made from a hybrid combination of aluminum (79%) and carbon-fiber-reinforced polymer (CFRP), it makes the body 40% stiffer and exceptionally light.' }
+          ]
+        }
+      };
+      
       // Loading screen elements
       const loadingOverlay = document.getElementById('loading-overlay');
       const progressBar = document.getElementById('progress-bar');
@@ -1082,8 +1240,11 @@
 
       // 2. Reset Camera Perspective
       btnReset.addEventListener('click', () => {
+        const activeBtn = document.querySelector('.switcher-btn.active');
+        const activeKey = activeBtn ? activeBtn.getAttribute('data-car') : 'rs6';
+        
         // Reset orbit and zoom to original values
-        modelViewer.cameraOrbit = "45deg 75deg 120%";
+        modelViewer.cameraOrbit = activeKey === 'r8' ? "45deg 75deg 130%" : "45deg 75deg 120%";
         modelViewer.fieldOfView = "auto";
         
         // Add subtle animation scale effect on click
@@ -1133,6 +1294,101 @@
           tab.classList.add('active');
           const activePanel = document.getElementById(targetTabId);
           activePanel.classList.add('active');
+        });
+      });
+
+      /* --------------------------------------------------
+         CAR SWITCHER INTERACTION LOGIC
+         -------------------------------------------------- */
+      const switcherButtons = document.querySelectorAll('.switcher-btn');
+      
+      switcherButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const carKey = btn.getAttribute('data-car');
+          if (btn.classList.contains('active') || !carData[carKey]) return;
+          
+          // Switch Active Tab Class
+          document.querySelector('.switcher-btn.active').classList.remove('active');
+          btn.classList.add('active');
+          
+          // 1. Trigger loading overlay cover
+          progressBar.style.width = '0%';
+          progressText.textContent = '0%';
+          document.querySelector('.loading-brand').textContent = carKey === 'rs6' ? 'RS 6 AVANT' : 'AUDI R8 V10';
+          document.querySelector('.loading-sub').textContent = carKey === 'rs6' ? 'Audi Sport' : 'V10 Plus Supercar';
+          loadingOverlay.classList.remove('loaded');
+          
+          // 2. Load the new model asset and metadata after a short delay
+          setTimeout(() => {
+            modelViewer.setAttribute('src', carData[carKey].src);
+            
+            // Adjust specific viewer attributes based on the car
+            if (carKey === 'r8') {
+              modelViewer.setAttribute('camera-orbit', '45deg 75deg 130%');
+              modelViewer.setAttribute('shadow-intensity', '1.5');
+            } else {
+              modelViewer.setAttribute('camera-orbit', '45deg 75deg 120%');
+              modelViewer.setAttribute('shadow-intensity', '2.0');
+            }
+            
+            // Update Right Console Content
+            document.querySelector('.sub-brand').innerHTML = carData[carKey].subBrand;
+            document.querySelector('.main-title').textContent = carData[carKey].title;
+            document.querySelector('.edition-tag').textContent = carData[carKey].edition;
+            
+            // Update Overview Panel
+            document.querySelector('.panel-headline').textContent = carData[carKey].headline;
+            document.querySelector('.panel-paragraph').textContent = carData[carKey].desc;
+            
+            // Update Quick Stats Grid
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards[0].querySelector('.stat-label').textContent = carData[carKey].stats.stat1.label;
+            statCards[0].querySelector('.stat-value').innerHTML = carData[carKey].stats.stat1.value;
+            
+            statCards[1].querySelector('.stat-label').textContent = carData[carKey].stats.stat2.label;
+            statCards[1].querySelector('.stat-value').innerHTML = carData[carKey].stats.stat2.value;
+            
+            statCards[2].querySelector('.stat-label').textContent = carData[carKey].stats.stat3.label;
+            statCards[2].querySelector('.stat-value').innerHTML = carData[carKey].stats.stat3.value;
+            
+            statCards[3].querySelector('.stat-label').textContent = carData[carKey].stats.stat4.label;
+            statCards[3].querySelector('.stat-value').innerHTML = carData[carKey].stats.stat4.value;
+            
+            // Update Specifications Table
+            const specTableBody = document.querySelector('.spec-table tbody');
+            specTableBody.innerHTML = '';
+            carData[carKey].specs.forEach(spec => {
+              const row = document.createElement('tr');
+              row.className = 'spec-row';
+              row.innerHTML = `
+                <td class="spec-label">${spec.label}</td>
+                <td class="spec-value">${spec.value}</td>
+              `;
+              specTableBody.appendChild(row);
+            });
+            
+            // Update Tech Cards Panel
+            const techPanel = document.getElementById('tab-tech');
+            techPanel.innerHTML = '';
+            carData[carKey].tech.forEach(card => {
+              const cardDiv = document.createElement('div');
+              cardDiv.className = 'tech-card';
+              cardDiv.innerHTML = `
+                <div class="tech-card-header">
+                  <span class="tech-badge"></span>
+                  <h4 class="tech-title">${card.title}</h4>
+                </div>
+                <p class="tech-description">${card.desc}</p>
+              `;
+              techPanel.appendChild(cardDiv);
+            });
+            
+            // Reset the interaction hint
+            interactionHint.classList.remove('hidden');
+            modelViewer.addEventListener('mousedown', hideInteractionHint);
+            modelViewer.addEventListener('touchstart', hideInteractionHint);
+            modelViewer.addEventListener('wheel', hideInteractionHint);
+          }, 350);
         });
       });
     });
