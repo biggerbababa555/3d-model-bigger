@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALEX FACE — 3D Model Viewer</title>
+  
+  <!-- SEO & Social Meta Tags -->
+  <meta name="description" content="An ultra-minimalist, monochrome 3D viewer for the iconic Alex Face mascot model. Interactive 3D Orbit, Zoom, and Pan.">
+  <meta name="keywords" content="Alex Face, 3D Viewer, GLB, Mascot, Art, Minimalist, Model Viewer">
+  <meta property="og:title" content="ALEX FACE — 3D Model Viewer">
+  <meta property="og:description" content="An ultra-minimalist, monochrome 3D viewer for the iconic Alex Face mascot model.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts - Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Google <model-viewer> web component -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
+  <style>
+    /* --------------------------------------------------
+       CSS CUSTOM PROPERTIES & BASE STYLES
+       -------------------------------------------------- */
+    :root {
+      --bg-color: #ffffff;
+      --bg-studio: radial-gradient(circle at center, #ffffff 0%, #f7f7f7 60%, #ebebeb 100%);
+      --bg-studio-dark: radial-gradient(circle at center, #2c2c2c 0%, #171717 60%, #0a0a0a 100%);
+      --text-primary: #000000;
+      --text-secondary: #707070;
+      --border-color: #e5e5e5;
+      --accent-color: #000000;
+      --overlay-bg: rgba(255, 255, 255, 0.98);
+      --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --transition-smooth: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      --transition-fast: all 0.2s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-studio);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      transition: background 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body.dark-mode {
+      --bg-color: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #aaaaaa;
+      --border-color: #2c2c2c;
+      --accent-color: #ffffff;
+      --overlay-bg: rgba(13, 13, 13, 0.98);
+      background: var(--bg-studio-dark);
+    }
+
+    /* --------------------------------------------------
+       LAYOUT ELEMENTS
+       -------------------------------------------------- */
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 40px 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    header * {
+      pointer-events: auto;
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .brand-title::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background-color: var(--text-primary);
+      transition: var(--transition-fast);
+    }
+
+    .brand-title:hover::after {
+      width: 100%;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      font-family: var(--font-family);
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 5px 0;
+      position: relative;
+      transition: var(--transition-fast);
+    }
+
+    .nav-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background-color: var(--text-primary);
+      transition: var(--transition-fast);
+    }
+
+    .nav-btn:hover::after {
+      width: 100%;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: #00ff66;
+      border-radius: 50%;
+      margin-left: 8px;
+      vertical-align: middle;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    /* --------------------------------------------------
+       3D MODEL VIEWER CONTAINER
+       -------------------------------------------------- */
+    .viewer-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      outline: none;
+      --poster-color: transparent;
+    }
+
+    /* --------------------------------------------------
+       CUSTOM PRECISE CONTROLS PANEL (BOTTOM)
+       -------------------------------------------------- */
+    .controls-toolbar {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 12px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 40px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+      transition: var(--transition-smooth);
+    }
+
+    body.dark-mode .controls-toolbar {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .toolbar-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-color);
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: var(--transition-fast);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      position: relative;
+    }
+
+    .toolbar-btn:hover {
+      transform: translateY(-2px);
+      background: var(--text-primary);
+      color: var(--bg-color);
+    }
+
+    .toolbar-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* Tooltips */
+    .toolbar-btn::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(5px);
+      background: var(--text-primary);
+      color: var(--bg-color);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+      text-transform: uppercase;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .toolbar-btn:hover::before {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Active State for Auto-Rotate button */
+    .toolbar-btn.active {
+      background: var(--text-primary);
+      color: var(--bg-color);
+    }
+
+    /* --------------------------------------------------
+       INTERACTION INSTRUCTION HINT
+       -------------------------------------------------- */
+    .interaction-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0.7;
+      animation: pulse-hint 3s infinite ease-in-out;
+      transition: opacity 0.8s ease;
+    }
+
+    .interaction-hint.hidden {
+      opacity: 0 !important;
+    }
+
+    .hint-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 15px auto;
+      border: 1px solid var(--text-primary);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .hint-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--text-primary);
+      animation: rotate-hint-svg 6s infinite linear;
+    }
+
+    .hint-text {
+      font-size: 0.75rem;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    @keyframes pulse-hint {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.8; }
+    }
+
+    @keyframes rotate-hint-svg {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* --------------------------------------------------
+       PREMIUM SLIDE-IN INFO PANEL
+       -------------------------------------------------- */
+    .info-drawer {
+      position: absolute;
+      top: 0;
+      right: -450px;
+      width: 450px;
+      height: 100vh;
+      height: 100dvh;
+      background: var(--overlay-bg);
+      border-left: 1px solid var(--border-color);
+      z-index: 100;
+      padding: 80px 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: var(--transition-smooth);
+      box-shadow: -10px 0 50px rgba(0, 0, 0, 0.02);
+    }
+
+    .info-drawer.open {
+      right: 0;
+      box-shadow: -20px 0 60px rgba(0, 0, 0, 0.08);
+    }
+
+    .close-drawer-btn {
+      position: absolute;
+      top: 40px;
+      right: 50px;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1.5rem;
+      font-weight: 200;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+    }
+
+    .close-drawer-btn:hover {
+      background: rgba(0,0,0,0.05);
+      transform: rotate(90deg);
+    }
+    
+    body.dark-mode .close-drawer-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .drawer-content {
+      margin-top: 40px;
+      flex-grow: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    /* Elegant scrollbar for drawer content */
+    .drawer-content::-webkit-scrollbar {
+      width: 2px;
+    }
+    .drawer-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .drawer-content::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+    }
+
+    .drawer-title {
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 25px;
+    }
+
+    .drawer-meta {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 30px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+
+    .drawer-desc {
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      margin-bottom: 40px;
+    }
+
+    .instruction-group {
+      margin-bottom: 35px;
+    }
+
+    .instruction-group-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+    }
+
+    .instruction-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 300;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--border-color);
+    }
+
+    .instruction-label {
+      color: var(--text-secondary);
+    }
+
+    .instruction-value {
+      font-weight: 400;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .drawer-footer {
+      font-size: 0.7rem;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      border-top: 1px solid var(--border-color);
+      padding-top: 20px;
+    }
+
+    /* --------------------------------------------------
+       PREMIUM LOADING SCREEN OVERLAY
+       -------------------------------------------------- */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: var(--bg-color);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .loading-overlay.loaded {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.02);
+    }
+
+    .loading-brand {
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      margin-bottom: 40px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fade-up-brand 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.2s;
+    }
+
+    @keyframes fade-up-brand {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .loading-progress-container {
+      width: 200px;
+      height: 2px;
+      background: var(--border-color);
+      position: relative;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .loading-progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0%;
+      background: var(--text-primary);
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .loading-percentage {
+      font-size: 0.8rem;
+      font-weight: 300;
+      letter-spacing: 0.25em;
+      color: var(--text-secondary);
+    }
+
+    /* --------------------------------------------------
+       MODEL SWITCHER TABS (BOTTOM OVERLAY)
+       -------------------------------------------------- */
+    .model-switcher {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 25px;
+      padding: 5px;
+      pointer-events: auto;
+    }
+
+    .switcher-btn {
+      background: none;
+      border: none;
+      font-family: var(--font-family);
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 8px 16px;
+      position: relative;
+      transition: var(--transition-fast);
+      opacity: 0.6;
+    }
+
+    .switcher-btn:hover {
+      opacity: 1;
+      color: var(--text-primary);
+    }
+
+    .switcher-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 2px;
+      background-color: var(--text-primary);
+      transition: var(--transition-fast);
+    }
+
+    .switcher-btn.active {
+      opacity: 1;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .switcher-btn.active::after {
+      width: 40px;
+    }
+
+    /* --------------------------------------------------
+       RESPONSIVE ADJUSTMENTS
+       -------------------------------------------------- */
+    @media (max-width: 768px) {
+      header {
+        padding: 30px;
+      }
+      .nav-btn {
+        font-size: 0.75rem;
+      }
+      .brand-title {
+        font-size: 0.95rem;
+      }
+      .model-switcher {
+        bottom: 95px;
+        gap: 15px;
+      }
+      .switcher-btn {
+        font-size: 0.7rem;
+        padding: 6px 12px;
+      }
+      .controls-toolbar {
+        bottom: 30px;
+        gap: 8px;
+        padding: 6px;
+      }
+      .toolbar-btn {
+        width: 40px;
+        height: 40px;
+      }
+      .toolbar-btn svg {
+        width: 15px;
+        height: 15px;
+      }
+      .info-drawer {
+        width: 100vw;
+        right: -100vw;
+        padding: 60px 30px;
+      }
+      .close-drawer-btn {
+        top: 30px;
+        right: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. LOADING SCREEN OVERLAY -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-brand" id="loading-brand">ALEX FACE</div>
+    <div class="loading-progress-container">
+      <div class="loading-progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="loading-percentage" id="progress-text">0%</div>
+  </div>
+
+  <!-- 2. HEADER OVERLAY -->
+  <header>
+    <div class="brand-title" id="brand-title">ALEX FACE</div>
+    <nav class="nav-links">
+      <button class="nav-btn" id="info-open-btn">Info <span class="status-dot"></span></button>
+    </nav>
+  </header>
+
+  <!-- 3. MAIN 3D MODEL VIEWER CONTAINER -->
+  <main class="viewer-container">
+    <model-viewer 
+      id="alex-model"
+      src="white_mesh.glb"
+      alt="Alex Face 3D Mascot Model"
+      camera-controls
+      auto-rotate
+      auto-rotate-delay="2000"
+      rotation-per-second="15deg"
+      shadow-intensity="1.8"
+      shadow-softness="0.7"
+      exposure="1.0"
+      environment-image="neutral"
+      camera-orbit="0deg 75deg 105%"
+      min-camera-orbit="auto auto 60%"
+      max-camera-orbit="auto auto 200%"
+      interaction-prompt="none"
+      loading="eager"
+      touch-action="pan-y">
+    </model-viewer>
+  </main>
+
+  <!-- 4. INTERACTION HINT PROMPT -->
+  <div class="interaction-hint" id="interaction-hint">
+    <div class="hint-icon">
+      <!-- Minimalist orbit/rotate icon -->
+      <svg viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+      </svg>
+    </div>
+    <div class="hint-text">Drag to Orbit</div>
+  </div>
+
+  <!-- 5. MODEL SWITCHER TABS -->
+  <div class="model-switcher" id="model-switcher">
+    <button class="switcher-btn active" data-model="alex">01. Alex Face</button>
+    <button class="switcher-btn" data-model="ball">02. FIFA Ball</button>
+    <button class="switcher-btn" data-model="bigger">03. Bigger</button>
+    <button class="switcher-btn" data-model="rowing">04. Alex Rowing</button>
+    <button class="switcher-btn" data-model="ranger">05. Ranger</button>
+  </div>
+
+  <!-- 6. CONTROLS TOOLBAR (BOTTOM) -->
+  <div class="controls-toolbar" id="controls-toolbar">
+    <!-- Auto-Rotate Toggle -->
+    <button class="toolbar-btn active" id="btn-rotate" data-tooltip="Auto Rotate" aria-label="Toggle Auto Rotation">
+      <!-- Pause Icon -->
+      <svg id="icon-pause" viewBox="0 0 24 24">
+        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+      </svg>
+      <!-- Play Icon (Hidden initially) -->
+      <svg id="icon-play" viewBox="0 0 24 24" style="display: none;">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+    </button>
+
+    <!-- Reset Camera View -->
+    <button class="toolbar-btn" id="btn-reset" data-tooltip="Reset View" aria-label="Reset Camera View">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+      </svg>
+    </button>
+
+    <!-- Lighting/Theme Mode Toggle -->
+    <button class="toolbar-btn" id="btn-theme" data-tooltip="Dark Mode" aria-label="Toggle Dark Mode">
+      <!-- Moon Icon -->
+      <svg id="icon-moon" viewBox="0 0 24 24">
+        <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+      </svg>
+      <!-- Sun Icon (Hidden initially) -->
+      <svg id="icon-sun" viewBox="0 0 24 24" style="display: none;">
+        <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.01c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 6. INFORMATION SLIDE-IN SIDE PANEL -->
+  <aside class="info-drawer" id="info-drawer">
+    <button class="close-drawer-btn" id="info-close-btn" aria-label="Close Information Panel">&times;</button>
+    
+    <div class="drawer-content">
+      <h2 class="drawer-title">Alex Face</h2>
+      <div class="drawer-meta">Studio Edition • 3D Archetype</div>
+      
+      <p class="drawer-desc">
+        Created by the renowned street artist Patcharapon Tangruen (better known as Alex Face), this signature character captures deep concern for the future through the eyes of an infant in a animal jumpsuit. Known worldwide, the iconic mascot is reimagined here as a flawless digital sculpture, capturing sculptural dimensions, smooth white textures, and complex expressions.
+      </p>
+
+      <!-- Keyboard & Mouse Interactive Instructions -->
+      <div class="instruction-group">
+        <h3 class="instruction-group-title">Desktop Interactivity</h3>
+        <div class="instruction-item">
+          <span class="instruction-label">Orbit Rotation</span>
+          <span class="instruction-value">Left Click + Drag</span>
+        </div>
+        <div class="instruction-item">
+          <span class="instruction-label">Pan Camera</span>
+          <span class="instruction-value">Right Click + Drag / Shift + Drag</span>
+        </div>
+        <div class="instruction-item">
+          <span class="instruction-label">Zoom In / Out</span>
+          <span class="instruction-value">Scroll Mouse Wheel</span>
+        </div>
+      </div>
+
+      <div class="instruction-group">
+        <h3 class="instruction-group-title">Mobile Interactivity</h3>
+        <div class="instruction-item">
+          <span class="instruction-label">Orbit Rotation</span>
+          <span class="instruction-value">One Finger Swipe</span>
+        </div>
+        <div class="instruction-item">
+          <span class="instruction-label">Zoom & Pan</span>
+          <span class="instruction-value">Two Finger Pinch / Drag</span>
+        </div>
+      </div>
+    </div>
+
+    <footer class="drawer-footer">
+      © 2026 Alex Face Studio • Crafted with Model Viewer
+    </footer>
+  </aside>
+
+  <!-- 7. INTERACTIVE JAVASCRIPT LOGIC -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const modelViewer = document.getElementById('alex-model');
+      
+      // Loading screen elements
+      const loadingOverlay = document.getElementById('loading-overlay');
+      const progressBar = document.getElementById('progress-bar');
+      const progressText = document.getElementById('progress-text');
+      const loadingBrand = document.getElementById('loading-brand');
+
+      // Model metadata mapping
+      const modelData = {
+        alex: {
+          src: 'white_mesh.glb',
+          title: 'Alex Face',
+          brand: 'ALEX FACE',
+          meta: 'Studio Edition • 3D Archetype',
+          desc: 'Created by the renowned street artist Patcharapon Tangruen (better known as Alex Face), this signature character captures deep concern for the future through the eyes of an infant in a animal jumpsuit. Known worldwide, the iconic mascot is reimagined here as a flawless digital sculpture, capturing sculptural dimensions, smooth white textures, and complex expressions.',
+          orbit: '0deg 75deg 105%',
+          minOrbit: 'auto auto 60%',
+          maxOrbit: 'auto auto 200%'
+        },
+        ball: {
+          src: 'ball.glb',
+          title: 'FIFA Ball',
+          brand: 'FIFA BALL',
+          meta: 'Champions League Edition • 3D Replica',
+          desc: 'A high-fidelity 3D reconstruction of the iconic UEFA Champions League star-panel match ball. Featuring the classic star-pattern stitching, glossy synthetic leather panels, and aerodynamic textures, this soccer ball represents a pinnacle of athletic design, rendered here with realistic physical materials, shadows, and reflections.',
+          orbit: '0deg 90deg 110%',
+          minOrbit: 'auto auto 70%',
+          maxOrbit: 'auto auto 220%'
+        },
+        bigger: {
+          src: 'model.glb',
+          title: 'Bigger',
+          brand: 'BIGGER',
+          meta: 'Sculpture Edition • Human Form',
+          desc: 'An exquisite digital study of the human form, titled \'Bigger\'. Capturing high-fidelity anatomical structural lines, elegant posture, and detailed contours, this 3D model explores form and volume in a modern white studio setting. Perfect for displaying subtle contact shadows and smooth lighting transitions.',
+          orbit: '0deg 75deg 105%',
+          minOrbit: 'auto auto 60%',
+          maxOrbit: 'auto auto 200%'
+        },
+        rowing: {
+          src: 'alex2.glb',
+          title: 'Alex Rowing',
+          brand: 'ALEX ROWING',
+          meta: 'Limited Edition • Narrative Art',
+          desc: 'A captivating 3D narrative sculpture showing the iconic mascot \'Alex Face\' gracefully rowing a boat. This edition blends physical toy culture with complex digital rendering, detailing the character\'s expressive form, organic textures, and the delicate structures of the wooden rowboat within our custom monochrome studio setup.',
+          orbit: '0deg 75deg 105%',
+          minOrbit: 'auto auto 60%',
+          maxOrbit: 'auto auto 200%'
+        },
+        ranger: {
+          src: 'bigranger.glb',
+          title: 'Ranger',
+          brand: 'RANGER',
+          meta: 'Military Edition • Character Sculpture',
+          desc: 'A highly detailed character sculpture of the \'Bigger\' character dressed in a full, detailed military ranger uniform. This piece showcases structured tactical gear, detailed uniform folds, and precise equipment rendering, presenting a stark, thematic contrast between playful scale and rigid discipline within our clean studio gallery.',
+          orbit: '0deg 75deg 105%',
+          minOrbit: 'auto auto 60%',
+          maxOrbit: 'auto auto 200%'
+        }
+      };
+      
+      // Control buttons
+      const btnRotate = document.getElementById('btn-rotate');
+      const iconPause = document.getElementById('icon-pause');
+      const iconPlay = document.getElementById('icon-play');
+      const btnReset = document.getElementById('btn-reset');
+      const btnTheme = document.getElementById('btn-theme');
+      const iconMoon = document.getElementById('icon-moon');
+      const iconSun = document.getElementById('icon-sun');
+      
+      // Info Panel Elements
+      const infoOpenBtn = document.getElementById('info-open-btn');
+      const infoCloseBtn = document.getElementById('info-close-btn');
+      const infoDrawer = document.getElementById('info-drawer');
+      const brandTitle = document.getElementById('brand-title');
+      
+      // Interaction hint
+      const interactionHint = document.getElementById('interaction-hint');
+
+      /* --------------------------------------------------
+         LOADING AND PROGRESS HANDLING
+         -------------------------------------------------- */
+      modelViewer.addEventListener('progress', (event) => {
+        const progress = Math.round(event.detail.totalProgress * 100);
+        progressBar.style.width = `${progress}%`;
+        progressText.textContent = `${progress}%`;
+      });
+
+      modelViewer.addEventListener('load', () => {
+        // Smoothly fade out loading overlay when 3D model is loaded
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
+        
+        setTimeout(() => {
+          loadingOverlay.classList.add('loaded');
+        }, 300);
+      });
+
+      /* --------------------------------------------------
+         INTERACTION HINT FADE OUT ON USER ACTION
+         -------------------------------------------------- */
+      const hideInteractionHint = () => {
+        if (!interactionHint.classList.contains('hidden')) {
+          interactionHint.classList.add('hidden');
+          // Remove event listeners after hint is hidden
+          modelViewer.removeEventListener('mousedown', hideInteractionHint);
+          modelViewer.removeEventListener('touchstart', hideInteractionHint);
+          modelViewer.removeEventListener('wheel', hideInteractionHint);
+        }
+      };
+
+      modelViewer.addEventListener('mousedown', hideInteractionHint);
+      modelViewer.addEventListener('touchstart', hideInteractionHint);
+      modelViewer.addEventListener('wheel', hideInteractionHint);
+
+      /* --------------------------------------------------
+         TOOLBAR CONTROLS LOGIC
+         -------------------------------------------------- */
+      
+      // 1. Toggle Auto-Rotate
+      btnRotate.addEventListener('click', () => {
+        const isRotating = modelViewer.hasAttribute('auto-rotate');
+        if (isRotating) {
+          modelViewer.removeAttribute('auto-rotate');
+          btnRotate.classList.remove('active');
+          iconPause.style.display = 'none';
+          iconPlay.style.display = 'block';
+          btnRotate.setAttribute('data-tooltip', 'Resume Orbit');
+        } else {
+          modelViewer.setAttribute('auto-rotate', '');
+          btnRotate.classList.add('active');
+          iconPause.style.display = 'block';
+          iconPlay.style.display = 'none';
+          btnRotate.setAttribute('data-tooltip', 'Pause Orbit');
+        }
+      });
+
+      // 2. Reset Camera Perspective
+      btnReset.addEventListener('click', () => {
+        const activeBtn = document.querySelector('.switcher-btn.active');
+        const activeKey = activeBtn ? activeBtn.getAttribute('data-model') : 'alex';
+        const orbitVal = modelData[activeKey] ? modelData[activeKey].orbit : "0deg 75deg 105%";
+        
+        // Reset orbit and zoom to original values
+        modelViewer.cameraOrbit = orbitVal;
+        modelViewer.fieldOfView = "auto";
+        
+        // Add subtle animation scale effect on click
+        btnReset.style.transform = 'scale(0.85)';
+        setTimeout(() => {
+          btnReset.style.transform = 'none';
+        }, 150);
+      });
+
+      // 3. Dark/Light Mode Switch
+      btnTheme.addEventListener('click', () => {
+        const isDark = document.body.classList.toggle('dark-mode');
+        if (isDark) {
+          iconMoon.style.display = 'none';
+          iconSun.style.display = 'block';
+          btnTheme.setAttribute('data-tooltip', 'Studio Light Mode');
+          modelViewer.setAttribute('shadow-intensity', '2.5');
+          modelViewer.setAttribute('exposure', '0.75');
+        } else {
+          iconMoon.style.display = 'block';
+          iconSun.style.display = 'none';
+          btnTheme.setAttribute('data-tooltip', 'Dark Studio Mode');
+          modelViewer.setAttribute('shadow-intensity', '1.8');
+          modelViewer.setAttribute('exposure', '1.0');
+        }
+      });
+
+      /* --------------------------------------------------
+         INFO DRAWER PANEL TOGGLES
+         -------------------------------------------------- */
+      const openDrawer = () => {
+        infoDrawer.classList.add('open');
+      };
+
+      const closeDrawer = () => {
+        infoDrawer.classList.remove('open');
+      };
+
+      infoOpenBtn.addEventListener('click', openDrawer);
+      brandTitle.addEventListener('click', openDrawer);
+      infoCloseBtn.addEventListener('click', closeDrawer);
+
+      // Close drawer if clicking outside the drawer
+      document.addEventListener('mousedown', (e) => {
+        if (!infoDrawer.contains(e.target) && 
+            !infoOpenBtn.contains(e.target) && 
+            !brandTitle.contains(e.target) && 
+            infoDrawer.classList.contains('open')) {
+          closeDrawer();
+        }
+      });
+
+      // AR Capability Check & Custom Button Styling
+      // Model viewer will trigger its default AR behaviors, but we can query canActivateAR to customize
+      modelViewer.addEventListener('ar-status', (event) => {
+        console.log('AR Status Changed:', event.detail.status);
+      });
+
+      /* --------------------------------------------------
+         MODEL SWITCHER EVENTS
+         -------------------------------------------------- */
+      const switcherButtons = document.querySelectorAll('.switcher-btn');
+      
+      switcherButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const modelKey = btn.getAttribute('data-model');
+          if (btn.classList.contains('active') || !modelData[modelKey]) return;
+          
+          // Switch Active Tab Class
+          document.querySelector('.switcher-btn.active').classList.remove('active');
+          btn.classList.add('active');
+          
+          // 1. Trigger loading overlay cover
+          progressBar.style.width = '0%';
+          progressText.textContent = '0%';
+          loadingBrand.textContent = modelData[modelKey].brand;
+          loadingOverlay.classList.remove('loaded');
+          
+          // 2. Load the new model asset and metadata
+          setTimeout(() => {
+            modelViewer.setAttribute('src', modelData[modelKey].src);
+            modelViewer.setAttribute('camera-orbit', modelData[modelKey].orbit);
+            modelViewer.setAttribute('min-camera-orbit', modelData[modelKey].minOrbit);
+            modelViewer.setAttribute('max-camera-orbit', modelData[modelKey].maxOrbit);
+            
+            // Dynamic UI details update
+            brandTitle.textContent = modelData[modelKey].brand;
+            document.querySelector('.drawer-title').textContent = modelData[modelKey].title;
+            document.querySelector('.drawer-meta').textContent = modelData[modelKey].meta;
+            document.querySelector('.drawer-desc').textContent = modelData[modelKey].desc;
+            
+            // Reset the interaction hint
+            interactionHint.classList.remove('hidden');
+            modelViewer.addEventListener('mousedown', hideInteractionHint);
+            modelViewer.addEventListener('touchstart', hideInteractionHint);
+            modelViewer.addEventListener('wheel', hideInteractionHint);
+          }, 300);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

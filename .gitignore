@@ -1,0 +1,11 @@
+# Ignore heavy design source files
+uploads_files_6919752_Champions+League+Ball+by+Sintakinar+Blogspot/
+*.obj
+*.max
+*.fbx
+*.mat
+*.mtl
+
+# OS files
+.DS_Store
+Thumbs.db
